@@ -25,6 +25,8 @@ static void *handle_client(void *arg);
 static void start_server(const char *address, uint16_t port);
 static void start_client(const char *address, uint16_t port);
 
+// Test
+
 int main(int argc, char *argv[]) {
   if (argc != 4) {
     fprintf(stderr, "Usage: %s [-a/-c] <address> <port>\n", argv[0]);
