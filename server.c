@@ -8,17 +8,18 @@
 #include <errno.h>
 #include <stdnoreturn.h>
 #include <stdint.h>
+#include <fcntl.h>
 
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
 
 int initialize_server_socket(const char *address, uint16_t port);
 int accept_connection(int server_socket);
-void start_server(const char *address, uint16_t port);
+void start_server(const char *address, uint16_t port, const char *webroot);
 int main(int argc, char *argv[]) {
     const char *address = "127.0.0.1";//default addy
     uint16_t port = 8080;
-
+    const char *webroot = "webroot"; // Path to the directory where HTML files are stored
     if (argc > 1) {
         address = argv[1];
     }
@@ -37,7 +38,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Proceed to use the address and port for your server setup
-    start_server(address, port);
+    start_server(address, port, webroot);
 
     return 0;
 }
@@ -90,15 +91,11 @@ int accept_connection(int server_socket) {
     printf("New connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
     return client_socket;
 }
-noreturn void start_server(const char *address, uint16_t port) {
+noreturn void start_server(const char *address, uint16_t port, const char *webroot) {
     int server_socket = initialize_server_socket(address, port);
     int client_sockets[MAX_CLIENTS] = {0};
     int max_sd, activity;
     fd_set read_fds;
-
-    // Declare these variables at the beginning of your function
-    struct sockaddr_in client_addr;
-    socklen_t client_len = sizeof(client_addr);
 
     printf("Server listening on %s:%d\n", address, port);
 
@@ -141,48 +138,72 @@ noreturn void start_server(const char *address, uint16_t port) {
                 char buffer[BUFFER_SIZE];
                 ssize_t valread = read(sd, buffer, BUFFER_SIZE - 1);
                 if (valread <= 0) {
-                    // Ensure client_addr and client_len are properly used here
-                    getpeername(sd, (struct sockaddr *)&client_addr, &client_len);
-                    printf("Host disconnected, ip %s, port %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+                    // Handle connection closure or error
+                    printf("Client disconnected or error occurred for client %d\n", i);
+
+                    // Close the client socket
                     close(sd);
+
+                    // Reset the client socket to 0
                     client_sockets[i] = 0;
                 } else {
                     buffer[valread] = '\0';
                     printf("Message from client %d: %s\n", i, buffer);
 
-                    // Check if it's a GET or POST request and handle accordingly
+                    // Check if it's a GET request
                     if (strstr(buffer, "GET") != NULL) {
-                        // Handle GET request
                         // Handle GET request
                         char method[16];
                         char path[1024];
-
-
-                            // Separate declaration and initialization of html_response
-                        const char *html_response = "HTTP/1.1 200 OK\r\n"
-                                                    "Content-Type: text/html\r\n"
-                                                    "\r\n"
-                                                    "<html>"
-                                                    "<head><title>Test</title></head>"
-                                                    "<body>"
-                                                    "<h1>Hello D'Arcy</h1>"
-                                                    "<p>This is a sample hardcoded HTML page.</p>"
-                                                    "</body>"
-                                                    "</html>";
+                        char full_path[2048];
+                        int file_fd;
                         sscanf(buffer, "%s %s", method, path);
                         printf("Received GET request for: %s\n", path);
-                        send(sd, html_response, strlen(html_response), 0);
 
+                        // Construct the full path to the requested file
+                        snprintf(full_path, sizeof(full_path), "%s/%s", webroot, path);
+
+                        // Open the requested file
+                        file_fd = open(full_path, O_RDONLY);
+                        if (file_fd == -1) {
+                            // File not found, send a 404 response with text/html content type
+                            const char *not_found_response = "HTTP/1.1 404 Not Found\r\n"
+                                                             "Content-Type: text/html\r\n\r\n"
+                                                             "<html>"
+                                                             "<head><title>404 Not Found</title></head>"
+                                                             "<body>"
+                                                             "<h1>404 Not Found</h1>"
+                                                             "<p>The requested page was not found.</p>"
+                                                             "</body>"
+                                                             "</html>";
+                            send(sd, not_found_response, strlen(not_found_response), 0);
+                        } else {
+                            // File found, send its content with appropriate content type
+                            const char *html_content_type = "text/html";
+                            char file_buffer[BUFFER_SIZE];
+                            ssize_t bytes_read;
+                            send(sd, "HTTP/1.1 200 OK\r\n", 17, 0);  // Sending the HTTP status line
+                            send(sd, "Content-Type: ", 14, 0);       // Sending the Content-Type header
+                            send(sd, html_content_type, strlen(html_content_type), 0);
+                            send(sd, "\r\n\r\n", 4, 0);              // End of headers, followed by content
+
+                            while ((bytes_read = read(file_fd, file_buffer, sizeof(file_buffer))) > 0) {
+                                // Cast bytes_read to size_t when passing to send
+                                send(sd, file_buffer, (size_t)bytes_read, 0);
+                            }
+                            close(file_fd);
+                        }
                     } else if (strstr(buffer, "POST") != NULL) {
                         // Handle POST request
                         // Modify this part to handle POST requests
                     }
-
                     // Additional logic to handle the request can be added here
                 }
             }
         }
     }
+    // Close the server socket when the loop exits
+//    close(server_socket);
 }
 //TESTING
 //To start do this:
