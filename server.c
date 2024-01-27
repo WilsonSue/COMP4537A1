@@ -90,7 +90,6 @@ int accept_connection(int server_socket) {
     printf("New connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
     return client_socket;
 }
-
 noreturn void start_server(const char *address, uint16_t port) {
     int server_socket = initialize_server_socket(address, port);
     int client_sockets[MAX_CLIENTS] = {0};
@@ -140,7 +139,7 @@ noreturn void start_server(const char *address, uint16_t port) {
             int sd = client_sockets[i];
             if (FD_ISSET(sd, &read_fds)) {
                 char buffer[BUFFER_SIZE];
-                ssize_t  valread = read(sd, buffer, BUFFER_SIZE - 1);
+                ssize_t valread = read(sd, buffer, BUFFER_SIZE - 1);
                 if (valread <= 0) {
                     // Ensure client_addr and client_len are properly used here
                     getpeername(sd, (struct sockaddr *)&client_addr, &client_len);
@@ -150,12 +149,42 @@ noreturn void start_server(const char *address, uint16_t port) {
                 } else {
                     buffer[valread] = '\0';
                     printf("Message from client %d: %s\n", i, buffer);
+
+                    // Check if it's a GET or POST request and handle accordingly
+                    if (strstr(buffer, "GET") != NULL) {
+                        // Handle GET request
+                        // Modify this part to handle GET requests
+                    } else if (strstr(buffer, "POST") != NULL) {
+                        // Handle POST request
+                        // Modify this part to handle POST requests
+                    }
+
                     // Additional logic to handle the request can be added here
                 }
             }
         }
     }
-    // Close the server socket when the loop exits
-    //commented now since code cannot be reached
-//    close(server_socket);
 }
+//TESTING
+//To start do
+// ./server on first terminal
+// open another tab in terminal or open another terminal
+// do either of commands to test
+
+//GET
+//first open chrome then write chrome://flags/ in url
+//In the search bar, enter "HTTP/1.0" to find the option.
+//In the "Enable HTTP/1.0" dropdown, select "Enabled."
+//Click the "Relaunch" button at the bottom to apply the changes and restart Chrome.
+
+//if firefox about:config
+//You may see a warning message; click the "Accept the Risk and Continue" button.
+//In the search bar at the top, enter "httpversion" to filter the results.
+//You should see an option called "network.http.version." Double-click it to change the value.
+//In the popup, enter "1.0" and click the "OK" button.
+
+//GET
+//curl -0 http://localhost:8080
+
+//POST
+//curl -X POST -d "key1=value1&key2=value2" http://127.0.0.1:8080/path
