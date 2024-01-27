@@ -159,24 +159,52 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                         int file_fd;
                         sscanf(buffer, "%s %s", method, path);
                         printf("Received GET request for: %s\n", path);
-
+                        // Check if the path is just "/"
+                        if (strcmp(path, "/") == 0) {
+                            // Redirect to index.html
+                            snprintf(full_path, sizeof(full_path), "%s/index.html", webroot);
+                            file_fd = open(full_path, O_RDONLY);
+                        } else {
                         // Construct the full path to the requested file
                         snprintf(full_path, sizeof(full_path), "%s/%s", webroot, path);
 
                         // Open the requested file
                         file_fd = open(full_path, O_RDONLY);
+                        }
                         if (file_fd == -1) {
-                            // File not found, send a 404 response with text/html content type
-                            const char *not_found_response = "HTTP/1.1 404 Not Found\r\n"
-                                                             "Content-Type: text/html\r\n\r\n"
-                                                             "<html>"
-                                                             "<head><title>404 Not Found</title></head>"
-                                                             "<body>"
-                                                             "<h1>404 Not Found</h1>"
-                                                             "<p>The requested page was not found.</p>"
-                                                             "</body>"
-                                                             "</html>";
-                            send(sd, not_found_response, strlen(not_found_response), 0);
+                            // File not found, try to open 404.html
+                            char not_found_path[2048];
+                            snprintf(not_found_path, sizeof(not_found_path), "%s/404.html", webroot);
+                            file_fd = open(not_found_path, O_RDONLY);
+
+                            if (file_fd != -1) {
+                                // 404.html found, send its content with appropriate content type
+                                const char *html_content_type = "text/html";
+                                char       file_buffer[BUFFER_SIZE];
+                                ssize_t    bytes_read;
+                                send(sd, "HTTP/1.1 404 Not Found\r\n", 24, 0);  // Sending the HTTP status line
+                                send(sd, "Content-Type: ", 14, 0);             // Sending the Content-Type header
+                                send(sd, html_content_type, strlen(html_content_type), 0);
+                                send(sd, "\r\n\r\n", 4, 0);                    // End of headers, followed by content
+
+                                while ((bytes_read = read(file_fd, file_buffer, sizeof(file_buffer))) > 0) {
+                                    // Cast bytes_read to size_t when passing to send
+                                    send(sd, file_buffer, (size_t) bytes_read, 0);
+                                }
+                                close(file_fd);
+                            } else {
+                                // 404.html not found, send a default 404 response
+                                const char not_found_response[] = "HTTP/1.1 404 Not Found\r\n"
+                                                                  "Content-Type: text/html\r\n\r\n"
+                                                                  "<html>"
+                                                                  "<head><title>404 Not Found</title></head>"
+                                                                  "<body>"
+                                                                  "<h1>404 Not Found</h1>"
+                                                                  "<p>The requested page was not found.</p>"
+                                                                  "</body>"
+                                                                  "</html>";
+                                send(sd, not_found_response, sizeof(not_found_response) - 1, 0);
+                            }
                         } else {
                             // File found, send its content with appropriate content type
                             const char *html_content_type = "text/html";
