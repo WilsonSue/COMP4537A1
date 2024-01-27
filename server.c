@@ -16,7 +16,7 @@ int initialize_server_socket(const char *address, uint16_t port);
 int accept_connection(int server_socket);
 void start_server(const char *address, uint16_t port);
 int main(int argc, char *argv[]) {
-    const char *address = "127.0.0.1";
+    const char *address = "127.0.0.1";//default addy
     uint16_t port = 8080;
 
     if (argc > 1) {
@@ -153,7 +153,26 @@ noreturn void start_server(const char *address, uint16_t port) {
                     // Check if it's a GET or POST request and handle accordingly
                     if (strstr(buffer, "GET") != NULL) {
                         // Handle GET request
-                        // Modify this part to handle GET requests
+                        // Handle GET request
+                        char method[16];
+                        char path[1024];
+
+
+                            // Separate declaration and initialization of html_response
+                        const char *html_response = "HTTP/1.1 200 OK\r\n"
+                                                    "Content-Type: text/html\r\n"
+                                                    "\r\n"
+                                                    "<html>"
+                                                    "<head><title>Test</title></head>"
+                                                    "<body>"
+                                                    "<h1>Hello D'Arcy</h1>"
+                                                    "<p>This is a sample hardcoded HTML page.</p>"
+                                                    "</body>"
+                                                    "</html>";
+                        sscanf(buffer, "%s %s", method, path);
+                        printf("Received GET request for: %s\n", path);
+                        send(sd, html_response, strlen(html_response), 0);
+
                     } else if (strstr(buffer, "POST") != NULL) {
                         // Handle POST request
                         // Modify this part to handle POST requests
@@ -166,7 +185,7 @@ noreturn void start_server(const char *address, uint16_t port) {
     }
 }
 //TESTING
-//To start do
+//To start do this:
 // ./server on first terminal
 // open another tab in terminal or open another terminal
 // do either of commands to test
