@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 
+
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
 
@@ -223,8 +224,55 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                         }
                     } else if (strstr(buffer, "POST") != NULL) {
                         // Handle POST request
-                        // Modify this part to handle POST requests
+                        char method[16];
+                        char path[1024];
+                        sscanf(buffer, "%s %s", method, path);
+                        printf("Received POST request for: %s\n", path);
+
+                        // Check if it's a POST request to a specific URL, e.g., /submit
+                        if (strcmp(path, "/submit") == 0) {
+                            // Parse the headers to determine the content length
+                            int content_length = 0;
+                            char* content_length_header = strstr(buffer, "Content-Length:");
+                            if (content_length_header) {
+                                sscanf(content_length_header, "Content-Length: %d", &content_length);
+                            }
+
+                            if (content_length > 0) {
+                                // Read the request body based on the content length
+                                char* post_data = (char*)malloc((size_t)(content_length + 1));
+                                if (post_data) {
+                                    ssize_t bytes_read = read(sd, post_data, (size_t)content_length);
+                                    if (bytes_read == content_length) {
+                                        const char *response = "HTTP/1.1 200 OK\r\n"
+                                                               "Content-Type: text/html\r\n\r\n"
+                                                               "<html><body><h1>POST Request Received</h1></body></html>";
+                                        // Successfully received the POST data
+                                        post_data[content_length] = '\0';
+                                        printf("POST Data: %s\n", post_data);
+
+                                        // Here, you can process the POST data as needed
+                                        // For example, you can parse form data or perform actions based on the data.
+
+                                        // Send a response to the client
+                                        send(sd, response, strlen(response), 0);
+                                    } else {
+                                        // Error reading POST data
+                                        const char *response = "HTTP/1.1 400 Bad Request\r\n"
+                                                               "Content-Type: text/html\r\n\r\n"
+                                                               "<html><body><h1>Bad Request</h1></body></html>";
+                                        send(sd, response, strlen(response), 0);
+                                    }
+
+                                    free(post_data); // Free the dynamically allocated memory
+                                }
+                            }
+                        } else {
+                            // Handle other POST requests or URLs
+                            // You can add logic for different POST requests here
+                        }
                     }
+
                     // Additional logic to handle the request can be added here
                 }
             }
