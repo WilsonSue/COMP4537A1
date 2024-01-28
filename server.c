@@ -228,13 +228,37 @@ noreturn void start_server(const char *address, uint16_t port,
 
           // Check if it's a GET request
           if (strstr(buffer, "GET") != NULL) {
-            // Handle GET request
             char method[16];
             char path[1024];
             char full_path[2048];
-            int file_fd;
+            int file_fd = -1;  // Initialize file_fd to an invalid value
+
             sscanf(buffer, "%s %s", method, path);
             printf("Received GET request for: %s\n", path);
+
+            // Handling /fetch endpoint
+            if (strcmp(path, "/fetch") == 0) {
+              char key[1024]; // Extract the key from the request
+              // TODO: Implement the actual key extraction logic
+
+              char* value;
+              DBM* db = openDatabase();
+              if (db) {
+                if (fetchData(db, key, &value)) {
+                  // Send the value back to the client
+                  const char *response_header = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n";
+                  send(sd, response_header, strlen(response_header), 0);
+                  send(sd, value, strlen(value), 0);
+                  free(value);  // Free the memory allocated for 'value'
+                } else {
+                  // Key not found, send a 404 response
+                  const char *not_found_response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\nKey not found";
+                  send(sd, not_found_response, strlen(not_found_response), 0);
+                }
+                closeDatabase(db);
+              }
+              continue;  // Skip the static file serving logic
+            }
             // Check if the path is just "/"
             if (strcmp(path, "/") == 0) {
               // Redirect to index.html
