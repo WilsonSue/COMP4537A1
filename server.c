@@ -281,6 +281,7 @@ noreturn void start_server(const char *address, uint16_t port,
               if (file_fd != -1) {
                 // 404.html found, send its content with appropriate content
                 // type
+
                 const char *html_content_type = "text/html";
                 char file_buffer[BUFFER_SIZE];
                 ssize_t bytes_read;

@@ -3,6 +3,8 @@
 //  ./server on first terminal
 //  open another tab in terminal or open another terminal
 //  do either of commands to test
+//Compile: gcc -o server server.c -lgdbm_compat
+
 
 // GET
 // first open chrome then write chrome://flags/ in url
