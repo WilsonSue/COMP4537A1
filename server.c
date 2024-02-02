@@ -246,6 +246,7 @@ noreturn void start_server(const char *address, uint16_t port,
                             }
                             close(file_fd);
                         }
+                        // POST starts here
                     } else if (strstr(buffer, "POST") != NULL) {
                         char method[16];
                         char path[1024];
@@ -255,49 +256,56 @@ noreturn void start_server(const char *address, uint16_t port,
 
                             // Check if the POST request is for a specific URL, e.g., "/submit"
                             if (strcmp(path, "/submit") == 0) {
-                                // Assuming 'body' is your response message
-                                const char *body = "Response received";
-                                size_t bodyLength = strlen(body); // Correctly calculate the length of the body
+                                char* bodyStart = strstr(buffer, "\r\n\r\n");
+                                const char *response = "HTTP/1.1 200 OK\r\n"
+                                                       "Content-Type: text/plain\r\n"
+                                                       "Content-Length: 17\r\n" // Length of the body "Response received"
+                                                       "\r\n"
+                                                       "Response received";
+                                if (bodyStart) {
+                                    char* contentLengthStr;
+                                    size_t contentLength;
+                                    bodyStart += 4; // Move past the header/body separator to the start of the body
+                                    contentLengthStr = strstr(buffer, "Content-Length: ");
+                                    contentLength = 0;
+                                    if (contentLengthStr) {
+                                        sscanf(contentLengthStr, "Content-Length: %zu", &contentLength);
+                                    }
 
-                                // Prepare the header
-                                char header[256];
-                                size_t headerLength;
-                                size_t totalLength;
-                                char *response;
-                                snprintf(header, sizeof(header),
-                                         "HTTP/1.1 200 OK\r\n"
-                                         "Content-Type: text/plain\r\n"
-                                         "Content-Length: %zu\r\n" // Use %zu for size_t type
-                                         "\r\n",
-                                         bodyLength);
+                                    if (contentLength > 0 && contentLength < BUFFER_SIZE) {
+                                        char* postData = (char*)malloc(contentLength + 1); // +1 for null terminator
+                                        if (postData) {
+                                            strncpy(postData, bodyStart, contentLength);
+                                            postData[contentLength] = '\0'; // Null-terminate the string
+                                            printf("POST Data: %s\n", postData);
 
-                                // Calculate total length of the response (header + body)
-                                headerLength= strlen(header);
-                                totalLength = headerLength + bodyLength; // Correctly calculate totalLength here
+                                            // Here you would process postData as needed for "/submit"
 
-                                // Allocate enough memory for the entire response (header + body + 1 for null terminator)
-                                response= (char *)malloc(totalLength + 1); // Allocate memory based on the calculated totalLength
-                                // Construct the response by copying the header and then appending the body
-                                strcpy(response, header); // Copy header to response
-                                strcat(response, body); // Append body to response
-
-                                // Send the response
-                                if (send(sd, response, totalLength, 0) == -1) {
-                                    // Handle send error
-                                    perror("send failed");
+                                            free(postData);
+                                        } else {
+                                            printf("Failed to allocate memory for POST data.\n");
+                                        }
+                                    } else {
+                                        printf("Content-Length not found or exceeds buffer size.\n");
+                                    }
+                                } else {
+                                    printf("POST request does not contain a body or header/body separator not found.\n");
                                 }
 
-                                free(response); // Don't forget to free the allocated memory
+                                // Sending a simple response back to the client
+                                send(sd, response, strlen(response), 0);
                             }
+                        } else {
+                            printf("Failed to parse method and path from POST request.\n");
+                        }
+                    }
 
 
 //post end
 
-                            }
-                        }
-                    }
                 }
             }
         }
     }
+}
 
