@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
@@ -172,12 +173,6 @@ noreturn void start_server(const char *address, uint16_t port,
                         sscanf(buffer, "%s %s", method, path);
                         printf("Received GET request for: %s\n", path);
 
-
-
-
-
-
-
                         // Check if the path is just "/"
                         if (strcmp(path, "/") == 0) {
                             // Redirect to index.html
@@ -314,8 +309,43 @@ noreturn void start_server(const char *address, uint16_t port,
                         } else {
                             printf("Failed to parse method and path from POST request.\n");
                         }
+
+                        //HEAD starts here
+                    } else if (strstr(buffer, "HEAD") != NULL) {
+                        char method[16];
+                        char path[1024];
+                        // Attempt to parse the method and path from the request
+                        if (sscanf(buffer, "%s %s", method, path) == 2) {
+                            char full_path[2048];
+                            struct stat fileInfo;
+                            printf("Parsed method: HEAD, Parsed path: %s\n", path);
+
+                            // Determine the path to the resource as you would for a GET request
+                            snprintf(full_path, sizeof(full_path), "%s/%s", webroot, path);
+
+                            // Check if the file exists
+                            if (stat(full_path, &fileInfo) == 0) {
+                                // File exists, prepare the response headers
+                                char header[1024];
+                                snprintf(header, sizeof(header),
+                                         "HTTP/1.1 200 OK\r\n"
+                                         "Content-Length: %lld\r\n" // Use the actual file size
+                                         "Content-Type: text/html; charset=UTF-8\r\n" // Assume HTML for simplicity
+                                         "\r\n",
+                                         (long long)fileInfo.st_size);
+
+                                send(sd, header, strlen(header), 0);
+                            } else {
+                                // File not found, send 404 response
+                                const char *response = "HTTP/1.1 404 Not Found\r\n"
+                                                       "Content-Type: text/html\r\n"
+                                                       "\r\n";
+                                send(sd, response, strlen(response), 0);
+                            }
+                        }
                     }
-                    //POST end
+
+
 
                 }
             }
