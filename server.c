@@ -310,6 +310,9 @@ noreturn void start_server(const char *address, uint16_t port,
                             printf("Failed to parse method and path from POST request.\n");
                         }
 
+
+
+
                         //HEAD starts here
                     } else if (strstr(buffer, "HEAD") != NULL) {
                         char method[16];

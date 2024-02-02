@@ -15,6 +15,8 @@ list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/server.c)
 
 set(server_SOURCES
     ${CMAKE_SOURCE_DIR}/server.c
+        db/db.h
+        db/db.c
 )
 
 set(server_HEADERS
