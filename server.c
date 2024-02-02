@@ -239,62 +239,65 @@ noreturn void start_server(const char *address, uint16_t port,
 
                             while ((bytes_read = read(file_fd, file_buffer,
                                                       sizeof(file_buffer))) > 0) {
+
+
                                 // Cast bytes_read to size_t when passing to send
                                 send(sd, file_buffer, (size_t) bytes_read, 0);
                             }
                             close(file_fd);
                         }
                     } else if (strstr(buffer, "POST") != NULL) {
-                        // Handle POST request
                         char method[16];
                         char path[1024];
-                        sscanf(buffer, "%s %s", method, path);
-                        printf("Received POST request for: %s\n", path);
+                        // Attempt to parse the method and path from the request
+                        if (sscanf(buffer, "%s %s", method, path) == 2) {
+                            printf("Parsed method: %s, Parsed path: %s\n", method, path);
 
-                        // Check if it's a POST request to a specific URL, e.g., /submit
-                        if (strcmp(path, "/submit") == 0) {
-                            // Parse the headers to determine the content length
-                            int  content_length         = 0;
-                            char *content_length_header = strstr(buffer, "Content-Length:");
-                            if (content_length_header) {
-                                sscanf(content_length_header, "Content-Length: %d",
-                                       &content_length);
+                            // Check if the POST request is for a specific URL, e.g., "/submit"
+                            if (strcmp(path, "/submit") == 0) {
+                                // Assuming 'body' is your response message
+                                const char *body = "Response received";
+                                size_t bodyLength = strlen(body); // Correctly calculate the length of the body
+
+                                // Prepare the header
+                                char header[256];
+                                size_t headerLength;
+                                size_t totalLength;
+                                char *response;
+                                snprintf(header, sizeof(header),
+                                         "HTTP/1.1 200 OK\r\n"
+                                         "Content-Type: text/plain\r\n"
+                                         "Content-Length: %zu\r\n" // Use %zu for size_t type
+                                         "\r\n",
+                                         bodyLength);
+
+                                // Calculate total length of the response (header + body)
+                                headerLength= strlen(header);
+                                totalLength = headerLength + bodyLength; // Correctly calculate totalLength here
+
+                                // Allocate enough memory for the entire response (header + body + 1 for null terminator)
+                                response= (char *)malloc(totalLength + 1); // Allocate memory based on the calculated totalLength
+                                // Construct the response by copying the header and then appending the body
+                                strcpy(response, header); // Copy header to response
+                                strcat(response, body); // Append body to response
+
+                                // Send the response
+                                if (send(sd, response, totalLength, 0) == -1) {
+                                    // Handle send error
+                                    perror("send failed");
+                                }
+
+                                free(response); // Don't forget to free the allocated memory
                             }
 
-                            if (content_length > 0) {
-                                // Read the request body based on the content length
-                                char *post_data = (char *) malloc((size_t) (content_length + 1));
-                                if (post_data) {
-                                    ssize_t bytes_read =
-                                                    read(sd, post_data, (size_t) content_length);
-                                    if (bytes_read == content_length) {
 
-                                        // Successfully received the POST data
-                                        post_data[content_length] = '\0';
-                                        printf("POST Data: %s\n", post_data);
+//post end
 
-
-                                    } else {
-                                        // Error reading POST data
-                                        const char *response =
-                                                           "HTTP/1.1 400 Bad Request\r\n"
-                                                           "Content-Type: text/html\r\n\r\n"
-                                                           "<html><body><h1>Bad Request</h1></body></html>";
-                                        send(sd, response, strlen(response), 0);
-                                    }
-
-                                    free(post_data); // Free the dynamically allocated memory
-                                }
                             }
                         }
-                    } else {
-                        // Handle other POST requests or URLs
-                        // You can add logic for different POST requests here
                     }
                 }
-
-                // Additional logic to handle the request can be added here
             }
         }
     }
-}
+
