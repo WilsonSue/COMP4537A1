@@ -17,7 +17,8 @@ void openDatabase(char *dbName) {
     }
 }
 
-void storeStringInDB(char *valueStr) {
+// In db.h
+void storeStringInDB(char* valueStr){
     // Directly using a non-const string
     char  keyStr[] = "singleKey";
     datum key, value;

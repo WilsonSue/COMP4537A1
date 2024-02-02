@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include "db/db.h"
 
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
@@ -23,6 +24,7 @@ void start_server(const char *address, uint16_t port, const char *webroot);
 int main(int argc, char *argv[]) {
     const char *address = "127.0.0.1"; // default addy
     uint16_t   port     = 8080;
+
     const char *webroot =
                        "webroot"; // Path to the directory where HTML files are stored
     if (argc > 1) {
@@ -106,7 +108,23 @@ noreturn void start_server(const char *address, uint16_t port,
     int    server_socket               = initialize_server_socket(address, port);
     int    client_sockets[MAX_CLIENTS] = {0};
     int    max_sd, activity;
+    char* retrievedNote;
+    char dbName[]= "mydatabase.db"; // Name of your database file
+    char testp[] = "Hello, World!";
     fd_set read_fds;
+
+    // Database test
+
+    openDatabase(dbName);
+    storeStringInDB(testp); // Test storing a string
+    retrievedNote = readStringFromDB(); // Attempt to retrieve the stored string
+    if (retrievedNote != NULL) {
+        printf("Retrieved note: %s\n", retrievedNote);
+    } else {
+        printf("No note was retrieved.\n");
+    }
+    closeDatabase(); // Always ensure to close the database
+
 
     printf("Server listening on %s:%d\n", address, port);
 

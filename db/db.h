@@ -11,6 +11,7 @@ void openDatabase(char* dbName);
 // Function to store a single string in the database
 void storeStringInDB(char* valueStr);
 
+
 // Function to read from database
 char* readStringFromDB(void);
 
