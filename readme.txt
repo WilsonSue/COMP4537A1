@@ -4,6 +4,7 @@
 //  open another tab in terminal or open another terminal
 //  do either of commands to test
 //Compile: gcc -o server server.c -lgdbm_compat
+//IP addy: ip a | grep "scope global" | grep -Po '(?<=inet )[\d.]+'
 
 
 // GET
