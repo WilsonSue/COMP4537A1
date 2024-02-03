@@ -108,23 +108,7 @@ noreturn void start_server(const char *address, uint16_t port,
     int    server_socket               = initialize_server_socket(address, port);
     int    client_sockets[MAX_CLIENTS] = {0};
     int    max_sd, activity;
-    char* retrievedNote;
-    char dbName[]= "mydatabase.db"; // Name of your database file
-    char testp[] = "Hello, World!";
     fd_set read_fds;
-
-    // Database test
-
-    openDatabase(dbName);
-    storeStringInDB(testp); // Test storing a string
-    retrievedNote = readStringFromDB(); // Attempt to retrieve the stored string
-    if (retrievedNote != NULL) {
-        printf("Retrieved note: %s\n", retrievedNote);
-    } else {
-        printf("No note was retrieved.\n");
-    }
-    closeDatabase(); // Always ensure to close the database
-
 
     printf("Server listening on %s:%d\n", address, port);
 
@@ -277,38 +261,61 @@ noreturn void start_server(const char *address, uint16_t port,
 
                         // POST starts here
                     } else if (strstr(buffer, "POST") != NULL) {
+                        char dbName[]= "mydatabase.db";
                         char method[16];
                         char path[1024];
                         // Attempt to parse the method and path from the request
                         if (sscanf(buffer, "%s %s", method, path) == 2) {
                             printf("Parsed method: %s, Parsed path: %s\n", method, path);
 
-                            // Check if the POST request is for a specific URL, e.g., "/submit"
+
+                            // Inside the POST request handling block
                             if (strcmp(path, "/submit") == 0) {
                                 char *bodyStart = strstr(buffer, "\r\n\r\n");
-                                const char *response = "HTTP/1.1 200 OK\r\n"
-                                                       "Content-Type: text/plain\r\n"
-                                                       "Content-Length: 17\r\n" // Length of the body "Response received"
-                                                       "\r\n"
-                                                       "Response received";
                                 if (bodyStart) {
-                                    char *contentLengthStr;
                                     size_t contentLength;
+                                    // Calculate content length
+                                    char *contentLengthStr = strstr(buffer, "Content-Length: ");
                                     bodyStart += 4; // Move past the header/body separator to the start of the body
-                                    contentLengthStr = strstr(buffer, "Content-Length: ");
-                                    contentLength    = 0;
+
+                                    contentLength = 0;
                                     if (contentLengthStr) {
                                         sscanf(contentLengthStr, "Content-Length: %zu", &contentLength);
                                     }
 
+                                    // Check content length and buffer size
                                     if (contentLength > 0 && contentLength < BUFFER_SIZE) {
-                                        char *postData = (char *) malloc(contentLength + 1); // +1 for null terminator
+                                        char *postData = (char *)malloc(contentLength + 1); // +1 for null terminator
                                         if (postData) {
+                                            char* retrievedNote;
                                             strncpy(postData, bodyStart, contentLength);
                                             postData[contentLength] = '\0'; // Null-terminate the string
-                                            printf("POST Data: %s\n", postData);
+                                            // Open the database just for this operation
+                                            openDatabase(dbName);
 
-                                            // Here you would process postData as needed for "/submit"
+                                            // Process the POST data
+                                            printf("POST Data: %s\n", postData);
+                                            storeStringInDB(postData); // Store the data
+
+                                            // Read the latest note from the database for the response
+                                            retrievedNote = readStringFromDB();
+                                            if (retrievedNote) {
+                                                // Construct and send the response with the retrieved note
+                                                char response[1024]; // Ensure this buffer is large enough
+                                                int responseLength = snprintf(response, sizeof(response),
+                                                                              "HTTP/1.1 200 OK\r\n"
+                                                                              "Content-Type: text/plain\r\n"
+                                                                              "Content-Length: %zu\r\n\r\n"
+                                                                              "This is read from DB:%s \n", strlen(retrievedNote) + 23, retrievedNote);
+                                                if (responseLength > 0) {
+                                                    send(sd, response, (size_t)responseLength, 0);
+                                                }
+                                            } else {
+                                                printf("Failed to retrieve note from database.\n");
+                                            }
+
+                                            // Close the database after the operation
+                                            closeDatabase();
 
                                             free(postData);
                                         } else {
@@ -320,10 +327,10 @@ noreturn void start_server(const char *address, uint16_t port,
                                 } else {
                                     printf("POST request does not contain a body or header/body separator not found.\n");
                                 }
-
-                                // Sending a simple response back to the client
-                                send(sd, response, strlen(response), 0);
                             }
+
+
+
                         } else {
                             printf("Failed to parse method and path from POST request.\n");
                         }
