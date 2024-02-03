@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
+//Initializes the server socket and inilization inside start_server
 int initialize_server_socket(const char *address, uint16_t port) {
     int                server_socket;
     struct sockaddr_in server_addr;
@@ -127,6 +128,7 @@ noreturn void start_server(const char *address, uint16_t port,
             }
         }
 
+        //Select call to make the array of file descriptors for IO multiplexing
         activity = select(max_sd + 1, &read_fds, NULL, NULL, NULL);
         if ((activity < 0) && (errno != EINTR)) {
             perror("select error");
@@ -164,7 +166,6 @@ noreturn void start_server(const char *address, uint16_t port,
                     printf("Message from client %d: %s\n", i, buffer);
 
 
-
                     // GET starts here
                     if (strstr(buffer, "GET") != NULL) {
                         char method[16];
@@ -198,11 +199,13 @@ noreturn void start_server(const char *address, uint16_t port,
 
 
 
-                            // 404.html found, send its content with appropriate content
+                            // 404.html found, send html with appropriate content
                             if (file_fd != -1) {
                                 const char *html_content_type = "text/html";
                                 char       file_buffer[BUFFER_SIZE];
                                 ssize_t    bytes_read;
+
+                                //Builds the response but sends it incrementally
                                 send(sd, "HTTP/1.1 404 Not Found\r\n", 24,
                                      0); // Sending the HTTP status line
                                 send(sd, "Content-Type: ", 14,
@@ -211,6 +214,7 @@ noreturn void start_server(const char *address, uint16_t port,
                                 send(sd, "\r\n\r\n", 4,
                                      0); // End of headers, followed by content
 
+                                //Reads file and puts stream into sd
                                 while ((bytes_read = read(file_fd, file_buffer,
                                                           sizeof(file_buffer))) > 0) {
                                     // Cast bytes_read to size_t when passing to send
@@ -218,8 +222,6 @@ noreturn void start_server(const char *address, uint16_t port,
                                 }
                                 close(file_fd);
                             } else {
-
-
 
                                 // 404.html not found, send a default 404 response
                                 const char not_found_response[] =
@@ -235,19 +237,21 @@ noreturn void start_server(const char *address, uint16_t port,
                                 send(sd, not_found_response, sizeof(not_found_response) - 1, 0);
                             }
 
-
-
-                            // File found, send its content with appropriate content type
+                            // Requested file found, send its content with appropriate content type
                         } else {
                             const char *html_content_type = "text/html";
                             char       file_buffer[BUFFER_SIZE];
                             ssize_t    bytes_read;
+
+                            //Sends the response header incrementally
                             send(sd, "HTTP/1.1 200 OK\r\n", 17,
                                  0); // Sending the HTTP status line
                             send(sd, "Content-Type: ", 14,
                                  0); // Sending the Content-Type header
                             send(sd, html_content_type, strlen(html_content_type), 0);
                             send(sd, "\r\n\r\n", 4, 0); // End of headers, followed by content
+
+                            //Reads contents of file and puts it to sd for sending
                             while ((bytes_read = read(file_fd, file_buffer,
                                                       sizeof(file_buffer))) > 0) {
                                 send(sd, file_buffer, (size_t) bytes_read, 0);
@@ -256,12 +260,9 @@ noreturn void start_server(const char *address, uint16_t port,
                         }
 
 
-
-
-
                         // POST starts here
                     } else if (strstr(buffer, "POST") != NULL) {
-                        char dbName[]= "mydatabase.db";
+                        char dbName[] = "mydatabase.db";
                         char method[16];
                         char path[1024];
                         // Attempt to parse the method and path from the request
@@ -275,19 +276,19 @@ noreturn void start_server(const char *address, uint16_t port,
                                 if (bodyStart) {
                                     size_t contentLength;
                                     // Calculate content length
-                                    char *contentLengthStr = strstr(buffer, "Content-Length: ");
+                                    char   *contentLengthStr = strstr(buffer, "Content-Length: ");
                                     bodyStart += 4; // Move past the header/body separator to the start of the body
+                                    contentLength            = 0;
 
-                                    contentLength = 0;
                                     if (contentLengthStr) {
                                         sscanf(contentLengthStr, "Content-Length: %zu", &contentLength);
                                     }
 
                                     // Check content length and buffer size
                                     if (contentLength > 0 && contentLength < BUFFER_SIZE) {
-                                        char *postData = (char *)malloc(contentLength + 1); // +1 for null terminator
+                                        char *postData = (char *) malloc(contentLength + 1); // +1 for null terminator
                                         if (postData) {
-                                            char* retrievedNote;
+                                            char *retrievedNote;
                                             strncpy(postData, bodyStart, contentLength);
                                             postData[contentLength] = '\0'; // Null-terminate the string
                                             // Open the database just for this operation
@@ -302,13 +303,15 @@ noreturn void start_server(const char *address, uint16_t port,
                                             if (retrievedNote) {
                                                 // Construct and send the response with the retrieved note
                                                 char response[1024]; // Ensure this buffer is large enough
-                                                int responseLength = snprintf(response, sizeof(response),
-                                                                              "HTTP/1.1 200 OK\r\n"
-                                                                              "Content-Type: text/plain\r\n"
-                                                                              "Content-Length: %zu\r\n\r\n"
-                                                                              "This is read from DB:%s \n", strlen(retrievedNote) + 23, retrievedNote);
+                                                int  responseLength = snprintf(response, sizeof(response),
+                                                                               "HTTP/1.1 200 OK\r\n"
+                                                                               "Content-Type: text/plain\r\n"
+                                                                               "Content-Length: %zu\r\n\r\n"
+                                                                               "This is read from DB:%s \n",
+                                                                               strlen(retrievedNote) + 23,
+                                                                               retrievedNote);
                                                 if (responseLength > 0) {
-                                                    send(sd, response, (size_t)responseLength, 0);
+                                                    send(sd, response, (size_t) responseLength, 0);
                                                 }
                                             } else {
                                                 printf("Failed to retrieve note from database.\n");
@@ -328,14 +331,9 @@ noreturn void start_server(const char *address, uint16_t port,
                                     printf("POST request does not contain a body or header/body separator not found.\n");
                                 }
                             }
-
-
-
                         } else {
                             printf("Failed to parse method and path from POST request.\n");
                         }
-
-
 
 
                         //HEAD starts here
@@ -344,7 +342,7 @@ noreturn void start_server(const char *address, uint16_t port,
                         char path[1024];
                         // Attempt to parse the method and path from the request
                         if (sscanf(buffer, "%s %s", method, path) == 2) {
-                            char full_path[2048];
+                            char        full_path[2048];
                             struct stat fileInfo;
                             printf("Parsed method: HEAD, Parsed path: %s\n", path);
 
@@ -360,7 +358,7 @@ noreturn void start_server(const char *address, uint16_t port,
                                          "Content-Length: %lld\r\n" // Use the actual file size
                                          "Content-Type: text/html; charset=UTF-8\r\n" // Assume HTML for simplicity
                                          "\r\n",
-                                         (long long)fileInfo.st_size);
+                                         (long long) fileInfo.st_size);
 
                                 send(sd, header, strlen(header), 0);
                             } else {
@@ -372,9 +370,6 @@ noreturn void start_server(const char *address, uint16_t port,
                             }
                         }
                     }
-
-
-
                 }
             }
         }
