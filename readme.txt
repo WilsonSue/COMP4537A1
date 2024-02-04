@@ -6,13 +6,17 @@
 //Compile: gcc -o server server.c -lgdbm_compat
 //IP addy: ip a | grep "scope global" | grep -Po '(?<=inet )[\d.]+'
 
+Instruction
+gcc -o server server.c ./db/db.c -lgdbm_compat
+./server
+GET on browser
+http://localhost:8080/
 
-// GET
-// first open chrome then write chrome://flags/ in url
-// In the search bar, enter "HTTP/1.0" to find the option.
-// In the "Enable HTTP/1.0" dropdown, select "Enabled."
-// Click the "Relaunch" button at the bottom to apply the changes and restart
-// Chrome.
+open other terminal
+POST
+curl -X POST http://localhost:8080/submit -d "this is a string"
+HEAD
+curl -I http://127.0.0.1:8080/index.html
 
 // if firefox about:config
 // You may see a warning message; click the "Accept the Risk and Continue"
