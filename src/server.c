@@ -97,14 +97,14 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
 {
     int    server_socket               = initialize_server_socket(address, port);
     int    client_sockets[MAX_CLIENTS] = {0};
-    int    max_sd;
-    int    activity;
     fd_set read_fds;
 
     printf("Server listening on %s:%d\n", address, port);
 
     while(1)
     {
+        int activity;
+        int max_sd;
         FD_ZERO(&read_fds);
         FD_SET(server_socket, &read_fds);
         max_sd = server_socket;
@@ -177,7 +177,7 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                         char full_path[MAX_FULL_PATH_LEN];
                         int  file_fd = -1;    // Initialize file_fd to an invalid value
 
-                        sscanf(buffer, "%s %s", method, path);
+                        sscanf(buffer, "%15s %1023s", method, path);
                         printf("Received GET request for: %s\n", path);
 
                         // Check if the path is just "/"
@@ -269,12 +269,10 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                     }
                     else if(strstr(buffer, "POST") != NULL)
                     {
-                        DBM *db       = NULL;
-                        char dbName[] = "mydatabase.db";
                         char method[MAX_HTTP_METHOD_LEN];
                         char path[MAX_PATH];
                         // Attempt to parse the method and path from the request
-                        if(sscanf(buffer, "%s %s", method, path) == 2)
+                        if(sscanf(buffer, "%15s %1023s", method, path) == 2)
                         {
                             printf("Parsed method: %s, Parsed path: %s\n", method, path);
 
@@ -308,14 +306,16 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                                         char *postData = (char *)malloc(contentLength + 1);    // +1 for null terminator
                                         if(postData)
                                         {
+                                            DBM  *db       = NULL;
+                                            char  dbName[] = "mydatabase.db";
                                             char *retrievedNote;
-                                            strncpy(postData, bodyStart, contentLength);
-                                            postData[contentLength] = '\0';    // Null-terminate the string
 
                                             // Open the database just for this operation
-                                            openDatabase(dbName, db);
+                                            openDatabase(dbName, &db);
 
                                             // Process the POST data
+                                            strncpy(postData, bodyStart, contentLength);
+                                            postData[contentLength] = '\0';    // Null-terminate the string
                                             printf("POST Data: %s\n", postData);
                                             storeStringInDB(postData, db);    // Store the data
 
@@ -338,16 +338,11 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                                                     send(sd, response, (size_t)responseLength, 0);
                                                 }
                                             }
-                                            else
-                                            {
-                                                printf("Failed to retrieve note from database.\n");
-                                            }
 
                                             // Close the database after the operation
-                                            closeDatabase(db);
-
-                                            free(postData);
+                                            closeDatabase(&db);
                                         }
+
                                         else
                                         {
                                             printf("Failed to allocate memory for POST data.\n");
@@ -376,7 +371,7 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                         char method[MAX_HTTP_METHOD_LEN];
                         char path[MAX_PATH];
                         // Attempt to parse the method and path from the request
-                        if(sscanf(buffer, "%s %s", method, path) == 2)
+                        if(sscanf(buffer, "%15s %1023s", method, path) == 2)
                         {
                             char        full_path[MAX_FULL_PATH_LEN];
                             struct stat fileInfo;

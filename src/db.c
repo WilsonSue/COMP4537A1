@@ -1,9 +1,9 @@
 #include "../include/db.h"
 
-void openDatabase(char *dbName, DBM *db)
+void openDatabase(char *dbName, DBM **db)
 {
-    db = dbm_open(dbName, O_RDWR | O_CREAT, HEXA_RWX);
-    if(db == NULL)
+    *db = dbm_open(dbName, O_RDWR | O_CREAT, HEXA_RWX);
+    if(*db == NULL)
     {
         perror("Failed to open database");
         exit(EXIT_FAILURE);
@@ -71,11 +71,11 @@ char *readStringFromDB(DBM *db)
 
 #pragma GCC diagnostic pop
 
-void closeDatabase(DBM *db)
+void closeDatabase(DBM **db)
 {
-    if(db != NULL)
+    if(*db != NULL)
     {
-        dbm_close(db);
-        db = NULL;    // Ensure the pointer is set to NULL after closing
+        dbm_close(*db);
+        *db = NULL;    // Ensure the pointer is set to NULL after closing
     }
 }
