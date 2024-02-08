@@ -265,7 +265,6 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                             }
                             close(file_fd);
                         }
-
                         // POST starts here
                     }
                     else if(strstr(buffer, "POST") != NULL)
@@ -293,7 +292,14 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
 
                                     if(contentLengthStr)
                                     {
-                                        sscanf(contentLengthStr, "Content-Length: %zu", &contentLength);
+                                        // Use strtoul to convert the content length string to an unsigned long
+                                        char *endptr;
+                                        contentLength = strtoul(contentLengthStr + strlen("Content-Length: "), &endptr, BASE_TEN);
+                                        if(*endptr != '\0')
+                                        {
+                                            printf("Error: Invalid Content-Length value\n");
+                                            // Handle error (e.g., return an error response to the client)
+                                        }
                                     }
 
                                     // Check content length and buffer size
