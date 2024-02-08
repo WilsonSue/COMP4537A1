@@ -12,7 +12,7 @@
 #define HEXA_RWX 0644
 
 // Function to open or create and then open the database
-void openDatabase(char *dbName, DBM *db);
+void openDatabase(char *dbName, DBM **db);
 
 // Function to store a single string in the database
 void storeStringInDB(char *valueStr, DBM *db);
@@ -21,6 +21,6 @@ void storeStringInDB(char *valueStr, DBM *db);
 char *readStringFromDB(DBM *db);
 
 // Function to close the database
-void closeDatabase(DBM *db);
+void closeDatabase(DBM **db);
 
 #endif    // DB_H
