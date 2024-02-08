@@ -77,10 +77,11 @@ int initialize_server_socket(const char *address, uint16_t port)
 int accept_connection(int server_socket)
 {
     struct sockaddr_in client_addr;
+    int                client_socket;
     socklen_t          client_len = sizeof(client_addr);
     memset(&client_addr, 0, sizeof(client_addr));    // Zero-initialize the struct to ensure no uninitialized fields
 
-    int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
+    client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
     if(client_socket < 0)
     {
         perror("accept failed");
@@ -293,7 +294,6 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                                     if(contentLengthStr)
                                     {
                                         sscanf(contentLengthStr, "Content-Length: %zu", &contentLength);
-
                                     }
 
                                     // Check content length and buffer size
