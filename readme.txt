@@ -7,7 +7,7 @@
 //IP addy: ip a | grep "scope global" | grep -Po '(?<=inet )[\d.]+'
 
 Instruction
-gcc -o server server.c ./db/db.c -lgdbm_compat
+gcc -o server ./src/server.c ./src/db.c -lgdbm_compat
 ./server
 GET on browser
 http://localhost:8080/
