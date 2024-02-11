@@ -5,7 +5,7 @@ int main(int argc, char *argv[])
     const char *address = "127.0.0.1";    // default addy
     uint16_t    port    = PORT_NUMBER;
 
-    const char *webroot = "webroot";    // Path to the directory where HTML files are stored
+    const char *webroot = "../webroot";    // Path to the directory where HTML files are stored
     if(argc > 1)
     {
         address = argv[1];
@@ -185,39 +185,58 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                         {
                             // Redirect to index.html
                             snprintf(full_path, sizeof(full_path), "%s/index.html", webroot);
-                            file_fd = open(full_path, O_RDONLY | O_CLOEXEC);
                         }
                         else
                         {
                             // Construct the full path to the requested file
                             snprintf(full_path, sizeof(full_path), "%s/%s", webroot, path);
-
-                            // Open the requested file
-                            file_fd = open(full_path, O_RDONLY | O_CLOEXEC);
                         }
 
-                        // File not found, try to open 404.html
-                        if(file_fd == -1)
+                        // Open the requested file
+                        file_fd = open(full_path, O_RDONLY | O_CLOEXEC);
+                        printf("Constructed full path: %s\n", full_path);
+
+                        // Check if the file is found
+                        if(file_fd != -1)
                         {
+                            // File found, send its content with appropriate content type
+                            const char *html_content_type = "text/html";
+                            char        file_buffer[BUFFER_SIZE];
+                            ssize_t     bytes_read;
+
+                            // Sends the response header incrementally
+                            send(sd, "HTTP/1.1 200 OK\r\n", SEVENTEEN, 0);    // Sending the HTTP status line
+                            send(sd, "Content-Type: ", FOURTEEN, 0);          // Sending the Content-Type header
+                            send(sd, html_content_type, strlen(html_content_type), 0);
+                            send(sd, "\r\n\r\n", 4, 0);    // End of headers, followed by content
+
+                            // Reads contents of file and puts it to sd for sending
+                            while((bytes_read = read(file_fd, file_buffer, sizeof(file_buffer))) > 0)
+                            {
+                                send(sd, file_buffer, (size_t)bytes_read, 0);
+                            }
+                            close(file_fd);
+                        }
+                        else
+                        {
+                            // File not found, try to open 404.html
                             char not_found_path[MAX_FULL_PATH_LEN];
                             snprintf(not_found_path, sizeof(not_found_path), "%s/404.html", webroot);
                             file_fd = open(not_found_path, O_RDONLY | O_CLOEXEC);
 
-                            // 404.html found, send html with appropriate content
+                            // Check if 404.html is found
                             if(file_fd != -1)
                             {
+                                // 404.html found, send HTML content with appropriate headers
                                 const char *html_content_type = "text/html";
                                 char        file_buffer[BUFFER_SIZE];
                                 ssize_t     bytes_read;
 
-                                // Builds the response but sends it incrementally
-                                send(sd, "HTTP/1.1 404 Not Found\r\n", TWENTY_FOUR,
-                                     0);    // Sending the HTTP status line
-                                send(sd, "Content-Type: ", FOURTEEN,
-                                     0);    // Sending the Content-Type header
+                                // Sends the response header incrementally
+                                send(sd, "HTTP/1.1 404 Not Found\r\n", TWENTY_FOUR, 0);    // Sending the HTTP status line
+                                send(sd, "Content-Type: ", FOURTEEN, 0);                   // Sending the Content-Type header
                                 send(sd, html_content_type, strlen(html_content_type), 0);
-                                send(sd, "\r\n\r\n", 4,
-                                     0);    // End of headers, followed by content
+                                send(sd, "\r\n\r\n", 4, 0);    // End of headers, followed by content
 
                                 // Reads file and puts stream into sd
                                 while((bytes_read = read(file_fd, file_buffer, sizeof(file_buffer))) > 0)
@@ -241,30 +260,8 @@ noreturn void start_server(const char *address, uint16_t port, const char *webro
                                                                   "</html>";
                                 send(sd, not_found_response, sizeof(not_found_response) - 1, 0);
                             }
-
-                            // Requested file found, send its content with appropriate content type
                         }
-                        else
-                        {
-                            const char *html_content_type = "text/html";
-                            char        file_buffer[BUFFER_SIZE];
-                            ssize_t     bytes_read;
 
-                            // Sends the response header incrementally
-                            send(sd, "HTTP/1.1 200 OK\r\n", SEVENTEEN,
-                                 0);    // Sending the HTTP status line
-                            send(sd, "Content-Type: ", FOURTEEN,
-                                 0);    // Sending the Content-Type header
-                            send(sd, html_content_type, strlen(html_content_type), 0);
-                            send(sd, "\r\n\r\n", 4, 0);    // End of headers, followed by content
-
-                            // Reads contents of file and puts it to sd for sending
-                            while((bytes_read = read(file_fd, file_buffer, sizeof(file_buffer))) > 0)
-                            {
-                                send(sd, file_buffer, (size_t)bytes_read, 0);
-                            }
-                            close(file_fd);
-                        }
                         // POST starts here
                     }
                     else if(strstr(buffer, "POST") != NULL)
