@@ -5,7 +5,8 @@ int main(int argc, char *argv[])
     const char *address = "127.0.0.1";    // default addy
     uint16_t    port    = PORT_NUMBER;
 
-    const char *webroot = "../webroot";    // Path to the directory where HTML files are stored
+    const char *webroot = "../webroot";    // Default webroot directory
+
     if(argc > 1)
     {
         address = argv[1];
